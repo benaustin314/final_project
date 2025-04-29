@@ -1,0 +1,37 @@
+---
+title: "final+project"
+output: html_document
+date: "2025-04-29"
+---
+
+```{r}
+library(readr)
+DC_Public_Schools_Student_Assessment_Results_Copy <- read_csv("C:/Users/btaus/DC_Public_Schools_Student_Assessment_Results - Copy.csv")
+View(DC_Public_Schools_Student_Assessment_Results_Copy)
+```
+
+
+Introduction: State your scientific question clearly in plain English and explain why it is interesting.
+
+Exploratory Data Analysis (EDA):
+
+Provide summary statistics and visuals.
+
+Informally address your question.
+
+Statistical Hypothesis:
+
+Transform your scientific question into a formal statistical hypothesis.
+
+Use notation where appropriate.
+
+Statistical Analysis:
+
+Implement and describe your analysis.
+
+Include graphics to check model assumptions.
+
+Conclusion:
+
+Summarize your findings.
+
