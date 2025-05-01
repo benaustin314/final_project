@@ -3,19 +3,96 @@ title: "final+project"
 output: html_document
 date: "2025-04-29"
 ---
-
+load libraries and data
 ```{r}
 library(readr)
-DC_Public_Schools_Student_Assessment_Results_Copy <- read_csv("C:/Users/btaus/DC_Public_Schools_Student_Assessment_Results - Copy.csv")
-View(DC_Public_Schools_Student_Assessment_Results_Copy)
+library(dbplyr)
+library(tidyverse)
+library(ggplot2)
+library(shiny)
+dfdirty <- read_csv("C:/Users/btaus/DC_Public_Schools_Student_Assessment_Results - Copy.csv")
 ```
+
+Data Cleaning
+```{r}
+dfdirty <- read_csv("C:/Users/btaus/DC_Public_Schools_Student_Assessment_Results - Copy.csv")
+
+colnames(dfdirty) <- gsub("[^[:alnum:]_]", "", colnames(dfdirty))
+
+dfdirty <- as.data.frame(dfdirty)
+
+
+
+selected_subgroups <- c("Female", "Male", "Black/African American", "White", "Hispanic/Latino", "Economically Disadvantaged")
+
+dffinal <- dfdirty[dfdirty$SCHOOL_YEAR == "2014-15" & dfdirty$SUBJECT == "Math" & dfdirty$TESTED_GRADE_SUBJECT == "Grade 3" & dfdirty$ASSESSMENT_TYPE == "PARCC" , ] %>% 
+  dplyr::select(SCHOOL_WARD, SCHOOL_NAME, ASSESSMENT_TYPE, SUBJECT, TESTED_GRADE_SUBJECT, SUBGROUP, SUBGROUP_VALUE, PERCENT_MEETING_OR_EXCEEDING_E, TOTAL_NUMBER_VALID_TEST_TAKERS, PERCENT_LEVEL_3_, PERCENT_LEVEL_1, PERCENT_LEVEL_2, PERCENT_LEVEL_3, PERCENT_LEVEL_4, PERCENT_LEVEL_5) %>%
+  mutate(PERCENT_MEETING_OR_EXCEEDING_E = as.character(PERCENT_MEETING_OR_EXCEEDING_E),
+         PERCENT_MEETING_OR_EXCEEDING_E = ifelse(PERCENT_MEETING_OR_EXCEEDING_E == "n<25", NA, PERCENT_MEETING_OR_EXCEEDING_E),
+         PERCENT_MEETING_OR_EXCEEDING_E = gsub("%", "", PERCENT_MEETING_OR_EXCEEDING_E), 
+         PERCENT_MEETING_OR_EXCEEDING_E = as.numeric(PERCENT_MEETING_OR_EXCEEDING_E)) %>% dplyr::select(SCHOOL_WARD, SCHOOL_NAME, ASSESSMENT_TYPE, SUBJECT, TESTED_GRADE_SUBJECT, SUBGROUP, SUBGROUP_VALUE, PERCENT_MEETING_OR_EXCEEDING_E, TOTAL_NUMBER_VALID_TEST_TAKERS) %>% 
+  filter(SUBGROUP_VALUE %in% selected_subgroups)
+
+
+
+write.csv(dffinal, "dffinal.csv")
+
+```
+
 
 
 Introduction: State your scientific question clearly in plain English and explain why it is interesting.
 
+Is the number of exceeding scores between wards significantly different? how about within specific subgroups?
+
 Exploratory Data Analysis (EDA):
 
 Provide summary statistics and visuals.
+
+```{r}
+summary(dffinal)
+```
+
+```{r}
+ggplot(dffinal, aes(x = PERCENT_MEETING_OR_EXCEEDING_E)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+  facet_wrap(~ SUBGROUP_VALUE, scales = "free_y") +
+  labs(title = "Distribution of Test Scores by Subgroup",
+       x = "Percent Meeting or Exceeding Expectations",
+       y = "Count") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(dffinal, aes(x = PERCENT_MEETING_OR_EXCEEDING_E)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+  facet_wrap(~ SCHOOL_WARD, scales = "free_y") +
+  labs(title = "Distribution of Test Scores by Ward",
+       x = "Percent Meeting or Exceeding Expectations",
+       y = "Number of Schools") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(dffinal, aes(x = SCHOOL_WARD, y = PERCENT_MEETING_OR_EXCEEDING_E, fill = SUBGROUP_VALUE)) +
+  geom_boxplot(position = "dodge") +
+  labs(title = "Test Scores by Ward and Subgroup",
+       y = "Percent Meeting or Exceeding Expectations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+ggplot(dffinal, aes(x = SCHOOL_WARD, y = PERCENT_MEETING_OR_EXCEEDING_E)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Test Score Distribution by Ward",
+       y = "Percent Meeting or Exceeding Expectations") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
 
 Informally address your question.
 
@@ -34,4 +111,43 @@ Include graphics to check model assumptions.
 Conclusion:
 
 Summarize your findings.
+
+shiny code
+```{r}
+ui <- fluidPage(
+  titlePanel("Test Score Distribution by Ward and Subgroup"),
+
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("subgroup", "Select Subgroup:",
+                  choices = c("Female", "Male", "Black/African American", "White", "Hispanic/Latino", "Economically Disadvantaged"),
+                  selected = "Female")
+    ),
+    mainPanel(
+      plotOutput("distPlot")
+    )
+  )
+)
+
+server <- function(input, output) {
+
+  filtered_data <- reactive({
+    req(input$subgroup)
+    dffinal %>%
+      filter(SUBGROUP_VALUE == input$subgroup)
+  })
+
+  output$distPlot <- renderPlot({
+    ggplot(filtered_data(), aes(x = PERCENT_MEETING_OR_EXCEEDING_E)) +
+      geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+      facet_wrap(~ SCHOOL_WARD, scales = "free_y") +
+      labs(title = paste("Distribution of Scores by Ward -", input$subgroup),
+           x = "Percent Meeting or Exceeding Expectations",
+           y = "Number of Schools") +
+      theme_minimal()
+  })
+}
+
+shinyApp(ui = ui, server = server)
+```
 
